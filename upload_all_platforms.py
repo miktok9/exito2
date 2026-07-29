@@ -75,15 +75,20 @@ except ImportError as e:
 
 
 def get_latest_reel():
-    video_dir = Path("output/video")
-    if not video_dir.exists():
-        print("No output/video directory found")
-        return None
-    reels = list(video_dir.glob("*/final_reel.mp4"))
-    if not reels:
-        print("No reels found in output/video directory")
-        return None
-    latest = max(reels, key=lambda p: p.stat().st_mtime)
+    # Check for direct final_video.mp4 first
+    fv = Path("output/final_video.mp4")
+    if fv.exists():
+        latest = fv
+    else:
+        video_dir = Path("output/video")
+        if not video_dir.exists():
+            print("No output/video directory found")
+            return None
+        reels = list(video_dir.glob("*/final_reel.mp4"))
+        if not reels:
+            print("No reels found in output/video directory")
+            return None
+        latest = max(reels, key=lambda p: p.stat().st_mtime)
     metadata_file = latest.parent / "metadata.json"
     metadata = {}
     if metadata_file.exists():
