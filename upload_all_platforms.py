@@ -199,16 +199,13 @@ def upload_to_all_platforms(video_path, caption, category, phrases=None):
             try:
                 upload_result = None
                 if platform_name == "facebook":
-                    upload_result = upload_func(video_path=video_path, description=caption, title=f"Vietnamese: {category}")
+                    upload_result = upload_func(video_path, caption)
                 elif platform_name == "instagram":
-                    upload_result = upload_func(video_path=video_path, caption=caption, is_story=False)
+                    upload_result = upload_func(video_path, caption)
                 elif platform_name == "youtube":
-                    num_phrases = len(phrases) if phrases else 5
-                    from upload_to_youtube import generate_video_metadata
-                    yt_title, yt_description, yt_tags = generate_video_metadata(category, num_phrases, phrases)
-                    upload_result = upload_func(video_path=video_path, title=yt_title, description=yt_description, tags=yt_tags, category_id='22')
+                    upload_result = upload_func(video_path, caption, category)
                 elif platform_name == "vk":
-                    upload_result = upload_func(video_path=video_path, description=caption, title=f"Vietnamese: {category}")
+                    upload_result = upload_func(video_path, caption)
                 elif platform_name == "telegram":
                     upload_result = upload_func(video_path=video_path, caption=caption)
                 elif platform_name == "twitter":
@@ -216,7 +213,7 @@ def upload_to_all_platforms(video_path, caption, category, phrases=None):
                 elif platform_name == "threads":
                     upload_result = upload_func(video_path=video_path, text=caption)
                 elif platform_name == "tiktok":
-                    upload_result = upload_func(video_path=video_path, description=caption)
+                    upload_result = upload_func(video_path, caption)
 
                 if upload_result:
                     results["uploads"][platform_name] = upload_result
