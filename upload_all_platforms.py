@@ -203,7 +203,7 @@ def upload_to_all_platforms(video_path, caption, category, phrases=None):
                 elif platform_name == "instagram":
                     upload_result = upload_func(video_path, caption)
                 elif platform_name == "youtube":
-                    upload_result = upload_func(video_path, caption, category)
+                    upload_result = upload_func(video_path, category, caption, ["history", "ancient", category.lower().replace(" ", "")])
                 elif platform_name == "vk":
                     upload_result = upload_func(video_path, caption)
                 elif platform_name == "telegram":
