@@ -113,7 +113,7 @@ def generate_story_with_pollinations(topic: str) -> str:
     }
 
     print(f"[story] Generating Spanish story for topic: {topic}")
-        for attempt in range(3):
+            for attempt in range(3):
         try:
             r = requests.get(url, headers=headers, params=params, timeout=180)
             r.raise_for_status()
