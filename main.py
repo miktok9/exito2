@@ -97,8 +97,8 @@ def generate_story_with_pollinations(topic: str) -> str:
         raise ValueError("POLLINATIONS_API_KEY required")
     url = "https://gen.pollinations.ai/v1/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    system = "You are a historian specializing in ancient women history. Write a short 30-second interesting story (80-130 words). Tell real historical facts, laws, customs, or traditions. Use a lively, captivating style. No titles."
-    prompt = f"Theme: {topic}. Tell an interesting historical fact."
+    system = "You are a historian specializing in ancient women history. Write a short 30-second interesting story (80-130 words) in Spanish. Tell real historical facts, laws, customs, or traditions. Use a lively, captivating style. No titles."
+    prompt = f"Theme: {topic}. Tell an interesting historical fact in Spanish."
     payload = {"model": "openai", "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}], "temperature": 0.8}
     print(f"[story] Generating story for topic: {topic}")
     for attempt in range(3):
@@ -112,7 +112,7 @@ def generate_story_with_pollinations(topic: str) -> str:
                 time.sleep((attempt+1)*10)
     else:
         print(f"[story] WARNING: API unavailable, using fallback story")
-        return f"Long ago, in the ancient world, women shaped laws, customs and daily life in remarkable ways. {topic}. Their stories of courage, skill and resilience echo through history and still inspire us today."
+        return f"Hace mucho tiempo, en el mundo antiguo, las mujeres moldearon las leyes, las costumbres y la vida cotidiana de maneras notables. {topic}. Sus historias de valor, habilidad y resiliencia resuenan a través de la historia y todavía nos inspiran hoy."
     text = r.json()["choices"][0]["message"]["content"].strip()
     words = text.split()
     if len(words) > STORY_MAX_WORDS:
