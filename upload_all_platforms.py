@@ -16,8 +16,12 @@ upload_dir = Path(__file__).parent / "upload"
 if upload_dir.exists() and str(upload_dir) not in sys.path:
     sys.path.insert(0, str(upload_dir))
 
-# Facebook upload permanently disabled per user instruction
 upload_to_facebook = None
+try:
+    from upload_facebook import upload_to_facebook as fb_upload
+    upload_to_facebook = fb_upload
+except ImportError as e:
+    print(f"[!] Facebook upload module not available: {e}")
 upload_to_instagram = None
 upload_to_youtube = None
 upload_to_vk = None
@@ -208,9 +212,9 @@ def upload_to_all_platforms(video_path, caption, category, phrases=None, video_t
         print(f"[ERROR] Video file not found: {video_path}")
         return results
 
-    # Only YouTube is enabled per user requirements (Facebook strictly disabled)
     platforms = [
         ("youtube", upload_to_youtube, "YouTube"),
+        ("facebook", upload_to_facebook, "Facebook"),
     ]
 
     tags = ['Ancient History', 'Historia', 'Historia Antigua', 'Mitología', 'Shorts', 'History', 'Womens History']
@@ -221,7 +225,10 @@ def upload_to_all_platforms(video_path, caption, category, phrases=None, video_t
 
         if upload_func:
             try:
-                upload_result = upload_func(video_path, video_title, caption, tags)
+                if platform_name == "youtube":
+                    upload_result = upload_func(video_path, video_title, caption, tags)
+                elif platform_name == "facebook":
+                    upload_result = upload_func(video_path, caption)
                 if upload_result:
                     results["uploads"][platform_name] = upload_result
                     results["platforms_successful"].append(platform_name)
@@ -240,16 +247,19 @@ def upload_to_all_platforms(video_path, caption, category, phrases=None, video_t
     print("\n" + "=" * 60)
     print("UPLOAD STATUS REPORT")
     print("=" * 60)
-    pinfo = results["uploads"].get("youtube", {})
-    if pinfo and pinfo.get("status") in ("success", "published"):
-        pid = pinfo.get("id", "N/A")
-        link = pinfo.get("link") or f"https://youtube.com/shorts/{pid}"
-        print(f"YOUTUBE: SUCCESS (ID: {pid}) LINK: {link}")
-    elif pinfo:
-        err = str(pinfo.get("error", ""))[:120]
-        print(f"YOUTUBE: FAILED - {err}")
-    else:
-        print("YOUTUBE: SKIPPED")
+    for pname, pkey in [("YOUTUBE", "youtube"), ("FACEBOOK", "facebook")]:
+        pinfo = results["uploads"].get(pkey, {})
+        if pinfo and pinfo.get("status") in ("success", "published"):
+            pid = pinfo.get("id", "N/A")
+            link = pinfo.get("link") or (f"https://youtube.com/shorts/{pid}" if pkey == "youtube" else "")
+            print(f"{pname}: SUCCESS (ID: {pid}) {link}")
+        elif pinfo and pinfo.get("status") == "skipped":
+            print(f"{pname}: SKIPPED - {pinfo.get('reason', '')}")
+        elif pinfo:
+            err = str(pinfo.get("error", ""))[:120]
+            print(f"{pname}: FAILED - {err}")
+        else:
+            print(f"{pname}: SKIPPED")
     print("=" * 60)
 
     results_file = Path("output") / f"upload_results_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
