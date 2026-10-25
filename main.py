@@ -90,61 +90,96 @@ def choose_topic_for_today():
     
     return selected_topic
 
+def is_valid_story(content: str) -> bool:
+    if not content or len(content.strip()) < 30:
+        return False
+    lower = content.lower()
+    error_keywords = [
+        "credit", "credits", "top up", "top-up", "pollinations", "api key",
+        "balance", "rate limit", "error", "unauthorized", "quota", "billing",
+        "quest", "account behind", "tokens", "http", "402", "429", "insufficient",
+        "service you're using", "service youre using", "top-up?ref=", "quests?ref="
+    ]
+    return not any(kw in lower for kw in error_keywords)
+
 def generate_story_with_pollinations(topic: str) -> str:
-    """Generate story using Pollinations AI."""
-    api_key = os.getenv("POLLINATIONS_API_KEY")
-    if not api_key:
-        raise ValueError("POLLINATIONS_API_KEY required")
-    url = "https://gen.pollinations.ai/v1/chat/completions"
+    """Generate native story using Pollinations AI with validation and multi-endpoint fallback."""
+    api_key = os.getenv("POLLINATIONS_API_KEY") or "sk_B0I1QMA8hWP14sICrnx1S1pt8riQdpLZ"
+    endpoints = [
+        "https://gen.pollinations.ai/v1/chat/completions",
+        "https://text.pollinations.ai/openai/chat/completions"
+    ]
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    system = "You are a historian specializing in ancient women history. Write a short 30-second interesting story (80-130 words) in Spanish. Tell real historical facts, laws, customs, or traditions. Use a lively, captivating style. No titles."
-    prompt = f"Theme: {topic}. Tell an interesting historical fact in Spanish."
+    system = "You are a classical historian specializing in ancient history. Write an engaging, captivating 30-second narration (80-120 words) in Spanish about the requested topic from ancient history. Focus on intriguing historical facts, customs, courage, or traditions. Do NOT include any titles, markdown formatting, symbols, or meta commentary. Write pure narrative text only."
+    prompt = f"Tema: {topic}. Cuenta un hecho histórico fascinante en español."
     payload = {"model": "openai", "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}], "temperature": 0.8}
-    print(f"[story] Generating story for topic: {topic}")
-    for attempt in range(3):
+    print(f"[story] Generating Spanish story for topic: {topic}")
+    
+    text = None
+    for attempt in range(4):
+        ep = endpoints[attempt % len(endpoints)]
         try:
-            r = requests.post(url, headers=headers, json=payload, timeout=60)
-            r.raise_for_status()
-            break
+            r = requests.post(ep, headers=headers, json=payload, timeout=60)
+            if r.status_code == 200:
+                candidate = r.json()["choices"][0]["message"]["content"].strip()
+                if is_valid_story(candidate):
+                    text = candidate
+                    break
+                else:
+                    print(f"[story] Response from {ep} contained error: {candidate[:60]}...")
+            else:
+                print(f"[story] Attempt {attempt+1} on {ep} status {r.status_code}")
         except Exception as e:
-            print(f"[story] Attempt {attempt+1} failed: {e}")
-            if attempt < 2:
-                time.sleep((attempt+1)*10)
-    else:
-        print(f"[story] WARNING: API unavailable, using fallback story")
-        return f"Hace mucho tiempo, en el mundo antiguo, las mujeres moldearon las leyes, las costumbres y la vida cotidiana de maneras notables. {topic}. Sus historias de valor, habilidad y resiliencia resuenan a través de la historia y todavía nos inspiran hoy."
-    text = r.json()["choices"][0]["message"]["content"].strip()
+            print(f"[story] Attempt {attempt+1} on {ep} failed: {e}")
+        time.sleep(3)
+        
+    if not text:
+        print("[story] ⚠️ Using curated historical context fallback...")
+        text = f"En el mundo antiguo, notables tradiciones y acontecimientos históricos forjaron el curso de las civilizaciones. Con respecto a {topic}, los registros antiguos revelan detalles fascinantes sobre la sabiduría, el valor y la vida cotidiana de esa época. Estas leyendas perdurables continúan inspirándonos hoy en día."
+        
     words = text.split()
     if len(words) > STORY_MAX_WORDS:
         text = " ".join(words[:STORY_MAX_WORDS])
     with open(STORY_FILE, "w", encoding="utf-8") as f:
         f.write(text)
-    print(f"[story] Story generated ({len(text.split())} words)")
+    print(f"[story] Spanish story generated ({len(text.split())} words)")
     return text
+
 def generate_english_story(topic: str) -> str:
-    """Generate English story using Pollinations AI."""
-    api_key = os.getenv("POLLINATIONS_API_KEY")
-    if not api_key:
-        raise ValueError("POLLINATIONS_API_KEY required")
-    url = "https://gen.pollinations.ai/v1/chat/completions"
+    """Generate English translation story using Pollinations AI."""
+    api_key = os.getenv("POLLINATIONS_API_KEY") or "sk_B0I1QMA8hWP14sICrnx1S1pt8riQdpLZ"
+    endpoints = [
+        "https://gen.pollinations.ai/v1/chat/completions",
+        "https://text.pollinations.ai/openai/chat/completions"
+    ]
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-    system = "You are a historian specialized in ancient women history. Write a short 30-second interesting story (80-130 words) in English. Tell real historical facts, laws, customs, or traditions. Use a lively, captivating style. No titles."
-    prompt = f"Theme: {topic}. Tell an interesting historical fact in English."
+    system = "You are a classical historian specializing in ancient history. Write an engaging, captivating 30-second narration (80-120 words) in English about the requested topic from ancient history. Focus on intriguing historical facts, customs, courage, or traditions. Do NOT include any titles, markdown formatting, symbols, or meta commentary. Write pure narrative text only."
+    prompt = f"Topic: {topic}. Write an interesting historical narrative in English."
     payload = {"model": "openai", "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}], "temperature": 0.8}
     print(f"[story] Generating English story for topic: {topic}")
-    for attempt in range(3):
+    
+    text = None
+    for attempt in range(4):
+        ep = endpoints[attempt % len(endpoints)]
         try:
-            r = requests.post(url, headers=headers, json=payload, timeout=60)
-            r.raise_for_status()
-            break
+            r = requests.post(ep, headers=headers, json=payload, timeout=60)
+            if r.status_code == 200:
+                candidate = r.json()["choices"][0]["message"]["content"].strip()
+                if is_valid_story(candidate):
+                    text = candidate
+                    break
+                else:
+                    print(f"[story] Response from {ep} contained error: {candidate[:60]}...")
+            else:
+                print(f"[story] Attempt {attempt+1} on {ep} status {r.status_code}")
         except Exception as e:
-            print(f"[story] Attempt {attempt+1} failed: {e}")
-            if attempt < 2:
-                time.sleep((attempt+1)*10)
-    else:
-        print(f"[story] WARNING: API unavailable, using fallback English story")
-        return f"Long ago, in the ancient world, women shaped laws, customs and daily life in remarkable ways. {topic}. Their stories of courage, skill and resilience echo through history and still inspire us today."
-    text = r.json()["choices"][0]["message"]["content"].strip()
+            print(f"[story] Attempt {attempt+1} on {ep} failed: {e}")
+        time.sleep(3)
+        
+    if not text:
+        print("[story] ⚠️ Using curated English historical fallback...")
+        text = f"In the ancient world, remarkable traditions and historical events shaped the course of civilizations. Regarding {topic}, ancient historical accounts reveal captivating details about the wisdom, courage, and daily life of people in that era. These enduring legends continue to inspire us across the centuries."
+        
     words = text.split()
     if len(words) > STORY_MAX_WORDS:
         text = " ".join(words[:STORY_MAX_WORDS])
@@ -236,8 +271,9 @@ def generate_images(scenes: list):
     return [generate_image(scene, i) for i, scene in enumerate(scenes)]
 
 def generate_tts(story: str):
-    """Generate narration using edge-tts (free Microsoft TTS)."""
+    """Generate narration using edge-tts (free Microsoft TTS) with retry and voice fallback."""
     import asyncio
+    import time
     try:
         import edge_tts
     except ImportError:
@@ -246,14 +282,34 @@ def generate_tts(story: str):
     
     print("[tts] Generating Spanish narration with edge-tts...")
     
-    VOICE = "es-ES-AlvaroNeural"  # Spanish (Spain) male voice (or use "es-MX-JorgeNeural" for Mexican Spanish)
+    # Clean text to remove any symbols, brackets, or URLs
+    clean_text = re.sub(r'https?://\S+', '', story)
+    clean_text = re.sub(r'[*_#\[\]\(\)<>]', '', clean_text)
+    clean_text = " ".join(clean_text.split())
     
-    async def generate():
-        communicate = edge_tts.Communicate(story, VOICE)
-        await communicate.save(str(NARRATION_FILE))
+    voices = ["es-ES-AlvaroNeural", "es-ES-ElviraNeural"]
+    success = False
     
-    asyncio.run(generate())
-    print(f"[tts] Narration saved to {NARRATION_FILE}")
+    for attempt in range(4):
+        voice = voices[attempt % len(voices)]
+        try:
+            print(f"[tts] Attempt {attempt+1}: Generating audio with {voice}...")
+            async def generate():
+                communicate = edge_tts.Communicate(clean_text, voice, rate="-8%")
+                await communicate.save(str(NARRATION_FILE))
+            asyncio.run(generate())
+            if NARRATION_FILE.exists() and NARRATION_FILE.stat().st_size > 1000:
+                print(f"[tts] ✅ Narration saved to {NARRATION_FILE} ({NARRATION_FILE.stat().st_size} bytes)")
+                success = True
+                break
+            else:
+                print("[tts] ⚠️ Audio file empty or too small, retrying...")
+        except Exception as e:
+            print(f"[tts] ⚠️ Attempt {attempt+1} failed with voice {voice}: {e}")
+            time.sleep(2 * (attempt + 1))
+            
+    if not success:
+        raise RuntimeError("Failed to generate TTS narration after multiple attempts.")
 
 def generate_word_subtitles():
     """Generate WORD-BY-WORD subtitles using Vosk (lightweight!)."""
